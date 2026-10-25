@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-import {Game, PRESETS, radical} from './engine.js';
+import {Game, PRESETS, radical} from './engine.js?v=2';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -58,8 +58,8 @@ function updateMode() {
   $('.example .type-3').textContent = hyper ? '+j' : '+i';
   $('#example-answer').textContent = hyper ? '0' : '√2';
   $('#example-caption').textContent = hyper ? '1 + j 的形式模长是 0，周围却有两颗雷' : '1 + i 的模长是 √2';
-  $('#type-mixed-rule').textContent = hyper ? '0：实部与 j 部的净和绝对值相等，一实一 j 也能得到 0。' : '√2：两颗雷时必须一实一虚；雷更多时，还可以有额外的抵消对。';
-  $('#type-zero-rule').textContent = hyper ? '例如 +1 与 +j、+1 与 −1，都能得到 0。不能直接套用圆复数的正负配对规则。' : '0：实部、虚部分别正负抵消，可以是一对，也可以有多对。';
+  if ($('#type-mixed-rule')) $('#type-mixed-rule').textContent = hyper ? '0：实部与 j 部的净和绝对值相等，一实一 j 也能得到 0。' : '√2：两颗雷时必须一实一虚；雷更多时，还可以有额外的抵消对。';
+  if ($('#type-zero-rule')) $('#type-zero-rule').textContent = hyper ? '例如 +1 与 +j、+1 与 −1，都能得到 0。不能直接套用圆复数的正负配对规则。' : '0：实部、虚部分别正负抵消，可以是一对，也可以有多对。';
   storage.set('mode', mode);
 }
 
@@ -168,6 +168,7 @@ function render() {
 
 function updateTypeJudgment() {
   const box = $('#type-current');
+  if (!box) return;
   box.hidden = inspectedClue === null;
   if (inspectedClue === null) return;
   const {count, value, matches} = game.flagClue(inspectedClue);
@@ -187,7 +188,7 @@ function finish() {
   $('#result-title').textContent = game.won ? '漂亮，所有安全格都找到了。' : '差一点，再推理一局。';
   const review = game.reviewFlags();
   $('#result-copy').textContent = `用时 ${formatTime(elapsed)} · ${game.moves} 步 · ✓ 共 ${review.exact + review.compatible} / ${game.mines} 颗雷`;
-  $('#result-scores').innerHTML = `<span class="score-exact">✓ 完全正确 <b>${review.exact}</b></span><span class="score-compatible">✓ 组合相符 <b>${review.compatible}</b></span><span>? 待验证 <b>${review.unverified}</b></span><span class="score-wrong">× 标错 <b>${review.wrong}</b></span>`;
+  if ($('#result-scores')) $('#result-scores').innerHTML = `<span class="score-exact">✓ 完全正确 <b>${review.exact}</b></span><span class="score-compatible">✓ 组合相符 <b>${review.compatible}</b></span><span>? 待验证 <b>${review.unverified}</b></span><span class="score-wrong">× 标错 <b>${review.wrong}</b></span>`;
   $('#result').hidden = false;
   toast(game.won ? '恭喜！所有安全格已翻开。' : '触雷了。棋盘已显示所有实际雷型，可以复盘。');
 }
