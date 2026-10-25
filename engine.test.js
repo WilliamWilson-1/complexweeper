@@ -156,3 +156,128 @@ test('random boards finish with consistent counts when safe cells are revealed',
     assert.equal(game.cells.filter(c => c.open).length, 71);
   }
 });
+
+test('sqrt(2) accepts one real and one imaginary flag with swapped axes and signs', () => {
+  const game = fixture([[6, 1], [8, 3]]);
+  game.reveal(12);
+  game.setFlag(6, 4); game.setFlag(8, 2);
+  assert.deepEqual(game.flagClue(12), {count: 2, value: 2, matches: true});
+  const review = game.reviewFlags();
+  assert.equal(review.compatible, 2);
+  assert.equal(review.exact, 0);
+  assert.equal(review.cells[6].status, 'compatible');
+  assert.deepEqual(review.cells[6].clues, [12]);
+});
+
+test('zero accepts an opposite-sign pair on either axis', () => {
+  const game = fixture([[6, 1], [8, 2]]);
+  game.reveal(12);
+  game.setFlag(6, 3); game.setFlag(8, 4);
+  assert.equal(game.flagClue(12).matches, true);
+  assert.equal(game.reviewFlags().compatible, 2);
+});
+
+test('zero rejects a same-sign pair but retains credit for an exact flag', () => {
+  const game = fixture([[6, 1], [8, 2]]);
+  game.reveal(12);
+  game.setFlag(6, 1); game.setFlag(8, 1);
+  const review = game.reviewFlags();
+  assert.equal(review.exact, 1);
+  assert.equal(review.wrong, 1);
+  assert.equal(review.compatible, 0);
+  assert.equal(game.flagClue(12).matches, false);
+});
+
+test('sqrt(2) rejects two flags on the same axis', () => {
+  const game = fixture([[6, 1], [8, 3]]);
+  game.reveal(12);
+  game.setFlag(6, 2); game.setFlag(8, 1);
+  assert.equal(game.reviewFlags().wrong, 2);
+});
+
+test('sqrt(2) with four mines includes an extra cancelling pair', () => {
+  const game = fixture([[6, 1], [7, 2], [8, 1], [11, 3]]);
+  game.reveal(12);
+  assert.equal(game.cells[12].clue, 2);
+  game.setFlag(6, 3); game.setFlag(7, 4); game.setFlag(8, 4); game.setFlag(11, 2);
+  assert.equal(game.flagClue(12).matches, true);
+  assert.equal(game.reviewFlags().compatible, 4);
+});
+
+test('zero supports multiple cancelling pairs and mixed exact/compatible credit', () => {
+  const game = fixture([[6, 1], [7, 2], [8, 3], [11, 4]]);
+  game.reveal(12);
+  game.setFlag(6, 1); game.setFlag(7, 2); game.setFlag(8, 1); game.setFlag(11, 2);
+  const review = game.reviewFlags();
+  assert.equal(review.exact, 2);
+  assert.equal(review.compatible, 2);
+  assert.equal(review.wrong, 0);
+});
+
+test('a matching clue does not override another revealed clue conflict', () => {
+  const game = fixture([[6, 1], [8, 3], [16, 1]]);
+  game.reveal(2); game.reveal(12);
+  game.setFlag(6, 2); game.setFlag(8, 3); game.setFlag(16, 1);
+  assert.equal(game.flagClue(2).matches, true);
+  assert.equal(game.flagClue(12).matches, false);
+  assert.equal(game.reviewFlags().cells[6].status, 'wrong');
+});
+
+test('a partly marked neighborhood alone cannot certify an alternate type', () => {
+  const game = fixture([[6, 1], [8, 3]]);
+  game.reveal(12);
+  game.setFlag(6, 2);
+  const review = game.reviewFlags();
+  assert.equal(review.cells[6].status, 'unverified');
+  assert.equal(review.compatible, 0);
+});
+
+test('a partial neighboring clue can invalidate an otherwise matching complete combination', () => {
+  const game = fixture([[6, 1], [8, 3], [16, 1], [17, 1]]);
+  game.reveal(2); game.reveal(12);
+  game.setFlag(6, 3); game.setFlag(8, 2); game.setFlag(16, 1);
+  assert.equal(game.flagClue(2).matches, true);
+  // Truth at 12 is 3+i -> sqrt(10). With (0,+1) fixed, no last unit reaches it.
+  assert.equal(game.cells[12].clue, 10);
+  assert.equal(game.reviewFlags().cells[6].status, 'wrong');
+});
+
+test('flags on safe cells never get combination credit', () => {
+  const game = fixture([[6, 1], [8, 3]]);
+  game.reveal(12);
+  game.setFlag(7, 1); game.setFlag(8, 3);
+  assert.equal(game.flagClue(12).matches, true);
+  assert.equal(game.reviewFlags().cells[7].status, 'wrong');
+});
+
+test('unrevealed clues never certify an alternate mark', () => {
+  const game = fixture([[6, 1], [8, 3]]);
+  game.setFlag(6, 3); game.setFlag(8, 1);
+  const review = game.reviewFlags();
+  assert.equal(review.unverified, 2);
+  assert.equal(review.compatible, 0);
+});
+
+test('hyperbolic zero accepts real/j combinations instead of applying circular rules', () => {
+  const game = fixture([[6, 1], [8, 3]], 'hyper');
+  game.reveal(12);
+  game.setFlag(6, 4); game.setFlag(8, 2);
+  assert.equal(game.flagClue(12).matches, true);
+  assert.equal(game.reviewFlags().compatible, 2);
+  game.setFlag(6, 3); game.setFlag(8, 3);
+  assert.equal(game.flagClue(12).matches, false);
+  assert.equal(game.reviewFlags().cells[6].status, 'wrong');
+});
+
+test('review totals cover every flag and do not mutate the board or outcome', () => {
+  for (const mode of ['complex', 'hyper']) for (let seed = 1; seed <= 20; seed++) {
+    const game = new Game({mode, seed});
+    game.reveal(40);
+    game.cells.forEach((cell, i) => {if (!cell.open && i % 3 === 0) game.setFlag(i, (i % 4) + 1);});
+    const before = JSON.stringify(game);
+    const review = game.reviewFlags();
+    assert.equal(review.exact + review.compatible + review.unverified + review.wrong, game.flags.reduce((a, b) => a + b, 0));
+    assert.equal(review.exact, game.correctFlags);
+    assert.equal(JSON.stringify(game), before);
+  }
+});

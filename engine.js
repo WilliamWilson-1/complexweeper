@@ -7,6 +7,16 @@ export const PRESETS = {
   hard: {width: 30, height: 16, mines: 99},
 };
 
+// Every sum reachable with n unit mines, including additional cancelling pairs.
+const POSSIBLE_SUMS = Array.from({length: 9}, (_, n) => {
+  const sums = [];
+  for (let a = -n; a <= n; a++) for (let b = -n; b <= n; b++) {
+    const distance = Math.abs(a) + Math.abs(b);
+    if (distance <= n && (n - distance) % 2 === 0) sums.push([a, b]);
+  }
+  return sums;
+});
+
 export function randomSeed() {
   return globalThis.crypto?.getRandomValues(new Uint32Array(1))[0] ?? (Math.random() * 2 ** 32) >>> 0;
 }
@@ -55,6 +65,17 @@ export class Game {
       const [x, y] = VECTORS[flags ? this.cells[i].flag : this.cells[i].mine];
       return [a + x, b + y];
     }, [0, 0]);
+  }
+
+  valueOf(a, b) {
+    return a * a + (this.mode === 'hyper' ? -1 : 1) * b * b;
+  }
+
+  flagClue(index) {
+    const [a, b] = this.sums(index, true);
+    const count = this.neighbors(index).filter(i => this.cells[i].flag).length;
+    const value = this.valueOf(a, b);
+    return {count, value, matches: count > 0 && value === this.cells[index].clue};
   }
 
   computeClues() {
@@ -166,5 +187,39 @@ export class Game {
 
   get correctFlags() {
     return this.cells.filter(c => c.mine && c.flag === c.mine).length;
+  }
+
+  reviewFlags() {
+    // Exact truth and clue-compatible combinations are separate achievements.
+    // Alternate types earn credit only with a completely marked, revealed clue.
+    // Other revealed clues must also remain possible, even when partly marked.
+    const related = this.cells.map(() => []);
+    for (let index = 0; index < this.cells.length; index++) {
+      const cell = this.cells[index];
+      if (!cell.open || cell.mine || !cell.adjacent) continue;
+      const neighbors = this.neighbors(index);
+      const mines = neighbors.filter(i => this.cells[i].mine);
+      const wrongPosition = neighbors.some(i => this.cells[i].flag && !this.cells[i].mine);
+      const missing = mines.filter(i => !this.cells[i].flag).length;
+      const [a, b] = this.sums(index, true);
+      const possible = !wrongPosition && POSSIBLE_SUMS[missing].some(([x, y]) => this.valueOf(a + x, b + y) === cell.clue);
+      const judgment = {index, possible, complete: !wrongPosition && missing === 0};
+      for (const i of mines) related[i].push(judgment);
+    }
+    const summary = {cells: [], exact: 0, compatible: 0, unverified: 0, wrong: 0};
+    summary.cells = this.cells.map((cell, index) => {
+      if (!cell.flag) return null;
+      let status;
+      const evidence = related[index];
+      const supporting = evidence.filter(clue => clue.complete && clue.possible);
+      if (!cell.mine) status = 'wrong';
+      else if (cell.mine === cell.flag) status = 'exact';
+      else if (evidence.some(clue => !clue.possible)) status = 'wrong';
+      else if (supporting.length) status = 'compatible';
+      else status = 'unverified';
+      summary[status]++;
+      return {status, clues: supporting.map(clue => clue.index)};
+    });
+    return summary;
   }
 }

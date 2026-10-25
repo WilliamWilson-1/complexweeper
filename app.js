@@ -12,7 +12,7 @@ if (!['complex', 'hyper'].includes(mode)) mode = 'complex';
 let difficulty = storage.get('difficulty', 'easy');
 if (!Object.hasOwn(PRESETS, difficulty)) difficulty = 'easy';
 let custom = {width: 12, height: 12, mines: 24};
-let game, buttons = [], selectedType = 1, action = 'reveal', timer = null, startTime = 0, elapsed = 0, focusIndex = 0, toastTimeout;
+let game, buttons = [], selectedType = 1, action = 'reveal', timer = null, startTime = 0, elapsed = 0, focusIndex = 0, toastTimeout, inspectedClue = null;
 let holdTimer, holdStart, suppressTouchClickUntil = 0;
 const labels = () => ['', '+1', '−1', mode === 'hyper' ? '+j' : '+i', mode === 'hyper' ? '−j' : '−i'];
 const formatTime = ms => `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
@@ -58,6 +58,8 @@ function updateMode() {
   $('.example .type-3').textContent = hyper ? '+j' : '+i';
   $('#example-answer').textContent = hyper ? '0' : '√2';
   $('#example-caption').textContent = hyper ? '1 + j 的形式模长是 0，周围却有两颗雷' : '1 + i 的模长是 √2';
+  $('#type-mixed-rule').textContent = hyper ? '0：实部与 j 部的净和绝对值相等，一实一 j 也能得到 0。' : '√2：两颗雷时必须一实一虚；雷更多时，还可以有额外的抵消对。';
+  $('#type-zero-rule').textContent = hyper ? '例如 +1 与 +j、+1 与 −1，都能得到 0。不能直接套用圆复数的正负配对规则。' : '0：实部、虚部分别正负抵消，可以是一对，也可以有多对。';
   storage.set('mode', mode);
 }
 
@@ -80,6 +82,7 @@ function newGame() {
   elapsed = 0;
   game = new Game({...difficulty === 'custom' ? custom : PRESETS[difficulty], mode});
   focusIndex = 0;
+  inspectedClue = null;
   setAction('reveal');
   $('#timer').textContent = '00:00';
   $('#result').hidden = true;
@@ -111,6 +114,7 @@ function newGame() {
 
 function render() {
   const flags = game.flags, flagCount = flags.reduce((a, b) => a + b, 0), names = labels();
+  const review = game.over ? game.reviewFlags() : null;
   for (let index = 0; index < game.cells.length; index++) {
     const cell = game.cells[index], button = buttons[index];
     let classes = ['cell'], text = '', description = '未翻开';
@@ -126,10 +130,11 @@ function render() {
       description = `雷 ${text}`;
       if (index === game.boom) {classes.push('boom'); description += '，引爆';}
       if (cell.flag) {
-        const correct = cell.flag === cell.mine;
-        classes.push(correct ? 'correct' : 'wrong');
-        text += `<span class="review-mark" aria-hidden="true">${correct ? '✓' : '×'}</span>`;
-        description += `，你的标记 ${names[cell.flag]}，${correct ? '正确' : '错误'}`;
+        const judgment = review.cells[index], status = judgment.status;
+        const messages = {exact: '具体雷型完全正确', compatible: '标记组合符合已翻开的线索，具体雷型不同', unverified: '尚无完整标记的线索可验证这个组合', wrong: '标记组合与已翻开的线索冲突'};
+        classes.push(status === 'exact' || status === 'compatible' ? 'correct' : status, status);
+        text += `<span class="review-mark" aria-hidden="true">${status === 'exact' || status === 'compatible' ? '✓' : status === 'unverified' ? '?' : '×'}</span>`;
+        description += `，你的标记 ${names[cell.flag]}，${messages[status]}`;
       }
     } else if (cell.flag) {
       classes.push('flagged', `type-${cell.flag}`);
@@ -141,6 +146,13 @@ function render() {
     button.innerHTML = text;
     button.setAttribute('aria-label', `第 ${Math.floor(index / game.width) + 1} 行，第 ${index % game.width + 1} 列，${description}`);
     button.setAttribute('aria-disabled', String(game.over));
+    if (review?.cells[index]) {
+      button.dataset.review = review.cells[index].status;
+      button.title = description;
+    } else {
+      delete button.dataset.review;
+      button.removeAttribute('title');
+    }
   }
   $('#remaining').textContent = String(game.mines - flagCount).padStart(3, '0');
   for (let type = 1; type <= 4; type++) $(`[data-count="${type}"]`).textContent = game.started ? game.totals[type] - flags[type] : '—';
@@ -150,7 +162,19 @@ function render() {
   $('#progress-count').textContent = `${game.opened} / ${safe}`;
   $('#progress-fill').style.width = `${game.opened / safe * 100}%`;
   $('#moves').textContent = `${game.moves} 步`;
-  $('#board-caption').textContent = game.over ? '结局复盘：✓ 类型正确 · × 标记错误 · 格内显示实际雷型' : game.started ? '0 可能藏着抵消的雷。相信线索，也留意正负。' : '✦ 从任意一格开始，第一步总是安全的。';
+  $('#board-caption').textContent = game.over ? '复盘：✓ 完全正确 / 组合相符 · ? 待验证 · × 错误；格内为实际雷型' : game.started ? '0 可能藏着抵消的雷。相信线索，也留意正负。' : '✦ 从任意一格开始，第一步总是安全的。';
+  updateTypeJudgment();
+}
+
+function updateTypeJudgment() {
+  const box = $('#type-current');
+  box.hidden = inspectedClue === null;
+  if (inspectedClue === null) return;
+  const {count, value, matches} = game.flagClue(inspectedClue);
+  const row = Math.floor(inspectedClue / game.width) + 1, col = inspectedClue % game.width + 1;
+  $('#type-current-label').textContent = `第 ${row} 行 ${col} 列 · 线索 ${radical(game.cells[inspectedClue].clue)}`;
+  $('#type-current-copy').textContent = !count ? '附近尚未插旗。先判断雷的位置，再组合类型。' : `当前 ${count} 面旗帜 → ${radical(value)}。${matches ? '数值相符，还需确认位置与总雷数。' : '尚未组成该线索，可以补旗或调整类型。'}`;
+  box.dataset.matches = String(matches);
 }
 
 function finish() {
@@ -161,12 +185,15 @@ function finish() {
     updateBest();
   }
   $('#result-title').textContent = game.won ? '漂亮，所有安全格都找到了。' : '差一点，再推理一局。';
-  $('#result-copy').textContent = `用时 ${formatTime(elapsed)} · ${game.moves} 步 · 类型标对 ${game.correctFlags} / ${game.mines} 颗雷`;
+  const review = game.reviewFlags();
+  $('#result-copy').textContent = `用时 ${formatTime(elapsed)} · ${game.moves} 步 · ✓ 共 ${review.exact + review.compatible} / ${game.mines} 颗雷`;
+  $('#result-scores').innerHTML = `<span class="score-exact">✓ 完全正确 <b>${review.exact}</b></span><span class="score-compatible">✓ 组合相符 <b>${review.compatible}</b></span><span>? 待验证 <b>${review.unverified}</b></span><span class="score-wrong">× 标错 <b>${review.wrong}</b></span>`;
   $('#result').hidden = false;
   toast(game.won ? '恭喜！所有安全格已翻开。' : '触雷了。棋盘已显示所有实际雷型，可以复盘。');
 }
 
 function perform(index, kind = action) {
+  if (game.cells[index].open && !game.cells[index].mine && game.cells[index].adjacent) inspectedClue = index;
   if (game.over) return;
   let result;
   if (kind === 'cycle') game.cycleFlag(index);
