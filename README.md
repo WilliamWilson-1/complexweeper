@@ -1,6 +1,6 @@
 # 复数扫雷 · Complexweeper Web
 
-给扫雷，多一个维度。一个使用 **HTML、CSS 和原生 JavaScript** 实现的复数扫雷网页版，电脑、平板与手机均可使用。
+Win98 风格的复数扫雷，使用原项目像素图集。一个使用 **HTML、CSS 和原生 JavaScript** 实现的复数扫雷网页版，电脑、平板与手机均可使用。
 
 **在线游玩：[williamwilson-1.github.io/complexweeper-web](https://williamwilson-1.github.io/complexweeper-web/)**
 
@@ -41,9 +41,9 @@
 | D / F | 切换翻开 / 标记模式 |
 | 1–4 | 选择旗帜类型并进入标记模式 |
 | 方向键、Enter / 空格 | 移动棋盘焦点并执行操作 |
-| R / Esc | 新一局 / 关闭弹窗 |
+| R / F2 / Esc | 新一局 / 新一局 / 关闭弹窗 |
 
-支持初级（9×9，10 雷）、中级（16×16，40 雷）、高级（30×16，99 雷）和自定义棋盘（5–40 列，5–30 行）。支持深浅色主题、本机最佳用时记录和结局标记复盘；偏好及纪录使用浏览器 `localStorage`，不发送到服务器。
+支持初级（9×9，10 雷）、中级（16×16，40 雷）、高级（30×16，99 雷）和自定义棋盘（5–40 列，5–30 行）。支持经典 / 高对比度配色、100%–300% 像素缩放、本机最佳用时记录和结局标记复盘；偏好及纪录使用浏览器 `localStorage`，不发送到服务器。
 
 ## 本地运行
 
@@ -74,9 +74,15 @@ npm test
 - `engine.js`：与界面解耦的复数扫雷规则。
 - `app.js`：输入交互、棋盘渲染、计时与本地纪录。
 - `engine.test.js`：游戏核心规则测试。
+- `atlas.png` / `atlas.json`：原项目像素图集和槽位表。
+- `sprites.js`：线索、雷型、LED 的图集映射。
+- `sprites.test.js`：可达线索、图集边界和计数器映射验证。
+- `ASSET-NOTICE.md`：原项目素材说明。
 
 ## 来源与许可
 
 原作者：**青月晓（Yueqing-Chen）**。原始项目：[complexweeper-A-minesweeper-game](https://github.com/Yueqing-Chen/complexweeper-A-minesweeper-game)。本版本基于该项目的规则与代码制作浏览器移植；保留原作者署名，并以 **GPL-3.0-only** 发布，见 [LICENSE](./LICENSE)。
 
-原项目含 Microsoft 原版扫雷素材及作者自制素材。本网页的布局、图形和样式重新制作，未包含原项目的 Microsoft 图像、图集、音频或程序图标。
+本版本按用户指定使用原仓库 `素材/图集.png` 与 `素材/图集.json`，保留原始像素，不重绘或修改图集。数字、四种旗帜、雷、笑脸、LED 计数器和程序图标通过 CSS 槽位显示。来源版本：`f6b80bb35690ad4498e2e0179353bc8b369a2d70`。
+
+素材权利和代码许可分开：作者原创 / 新增素材依原项目说明随 GPL-3.0 发布；Microsoft 原版扫雷素材的权利属于 Microsoft，不属于 GPL-3.0 授权范围。完整原始说明保存在 [ASSET-NOTICE.md](./ASSET-NOTICE.md)。本项目与 Microsoft 无隶属关系，未获得其授权或背书。

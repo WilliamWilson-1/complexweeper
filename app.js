@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import {Game, PRESETS, radical} from './engine.js?v=2';
+import {sprite, clueSprite, mineSprite, counterSprites} from './sprites.js?v=3';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -12,6 +13,8 @@ if (!['complex', 'hyper'].includes(mode)) mode = 'complex';
 let difficulty = storage.get('difficulty', 'easy');
 if (!Object.hasOwn(PRESETS, difficulty)) difficulty = 'easy';
 let custom = {width: 12, height: 12, mines: 24};
+const storedZoom = storage.get('zoom', null);
+let zoom = [1, 1.5, 2, 3].includes(storedZoom) ? storedZoom : matchMedia('(max-width: 360px)').matches ? 1.5 : 2;
 let game, buttons = [], selectedType = 1, action = 'reveal', timer = null, startTime = 0, elapsed = 0, focusIndex = 0, toastTimeout, inspectedClue = null;
 let holdTimer, holdStart, suppressTouchClickUntil = 0;
 const labels = () => ['', '+1', '−1', mode === 'hyper' ? '+j' : '+i', mode === 'hyper' ? '−j' : '−i'];
@@ -35,20 +38,21 @@ function stopTimer() {
     elapsed = performance.now() - startTime;
     clearInterval(timer);
     timer = null;
-    $('#timer').textContent = formatTime(elapsed);
+    setTimer(elapsed);
   }
 }
 
 function ensureTimer() {
   if (timer !== null || !game.started || game.over) return;
   startTime = performance.now();
-  timer = setInterval(() => {$('#timer').textContent = formatTime(performance.now() - startTime);}, 250);
+  timer = setInterval(() => setTimer(performance.now() - startTime), 250);
 }
 
 function updateMode() {
   $$('[data-mode]').forEach(button => button.setAttribute('aria-pressed', button.dataset.mode === mode));
   const hyper = mode === 'hyper', names = labels();
-  $$('[data-type]').forEach(button => {button.querySelector('.type-token').textContent = names[Number(button.dataset.type)];});
+  $$('[data-type]').forEach(button => {const type = Number(button.dataset.type); button.querySelector('.type-token').innerHTML = sprite(mineSprite('flag', type, mode)) + `<span class="sr-only">${names[type]}</span>`;});
+  if ($('#tray-mode')) $('#tray-mode').textContent = hyper ? 'j² = +1' : 'i² = −1';
   $('#positive-unit-name').textContent = hyper ? '正双曲虚雷' : '正虚雷';
   $('#negative-unit-name').textContent = hyper ? '负双曲虚雷' : '负虚雷';
   $('#positive-unit-en').textContent = hyper ? 'HYPERBOLIC +' : 'IMAGINARY +';
@@ -84,15 +88,14 @@ function newGame() {
   focusIndex = 0;
   inspectedClue = null;
   setAction('reveal');
-  $('#timer').textContent = '00:00';
+  setTimer(0);
   $('#result').hidden = true;
   $('#toast').hidden = true;
   $('#difficulty').value = difficulty;
   $('#custom-edit').hidden = difficulty !== 'custom';
   $('#difficulty option[value="custom"]').textContent = difficulty === 'custom' ? `自定义 · ${game.width} × ${game.height}` : '自定义…';
   $('#board').style.setProperty('--cols', game.width);
-  if (game.width > 9) $('#board').style.setProperty('--size', '30px');
-  else $('#board').style.removeProperty('--size');
+  applyZoom();
   $('#board').setAttribute('aria-label', `${game.height} 行 ${game.width} 列扫雷棋盘`);
   const fragment = document.createDocumentFragment();
   buttons = game.cells.map((_, index) => {
@@ -112,38 +115,69 @@ function newGame() {
   if (difficulty !== 'custom') storage.set('difficulty', difficulty);
 }
 
+function setCounter(element, value, label) {
+  if (element.dataset.value !== String(value)) {
+    element.innerHTML = counterSprites(value);
+    element.dataset.value = value;
+  }
+  element.setAttribute('aria-label', label);
+  element.title = label;
+}
+
+function setTimer(ms) {
+  const seconds = Math.floor(ms / 1000);
+  setCounter($('#timer'), seconds, `用时 ${seconds} 秒（${formatTime(ms)}）`);
+}
+
+function applyZoom() {
+  $('#board').style.setProperty('--size', `${16 * zoom}px`);
+  $('#board').style.setProperty('--sprite-scale', zoom);
+  $('.shell').style.setProperty('--window-width', `${Math.max(320, game.width * 16 * zoom + 32)}px`);
+  if ($('#zoom')) $('#zoom').value = String(zoom);
+}
+
+function updateFace(pressed = false) {
+  const button = $('#face-button');
+  if (!button || !game) return;
+  const name = game.over ? game.won ? 'face_win' : 'face_dead' : pressed ? 'face_scan' : 'face_normal';
+  if (button.firstElementChild?.classList.contains('sprite')) button.firstElementChild.className = `sprite sprite-${name}`;
+  else button.innerHTML = sprite(name);
+  button.setAttribute('aria-label', `${game.over ? game.won ? '胜利表情' : '触雷表情' : '笑脸'}：开始新一局`);
+}
+
 function render() {
   const flags = game.flags, flagCount = flags.reduce((a, b) => a + b, 0), names = labels();
   const review = game.over ? game.reviewFlags() : null;
   for (let index = 0; index < game.cells.length; index++) {
     const cell = game.cells[index], button = buttons[index];
-    let classes = ['cell'], text = '', description = '未翻开';
+    let classes = ['cell'], tile = 'closed', description = '未翻开', badge = '';
     if (cell.open && !cell.mine) {
       classes.push('open');
-      text = cell.adjacent ? radical(cell.clue) : '';
-      description = cell.adjacent ? `线索 ${text}，点击尝试展开` : '空白';
-      classes.push(!cell.adjacent ? 'blank' : cell.clue === 0 ? 'clue-zero' : cell.clue < 0 ? 'clue-imaginary' : cell.clue === 1 ? 'clue-one' : cell.clue <= 8 ? 'clue-two' : 'clue-high');
-      if (text.length > 2) classes.push('long-value');
+      tile = cell.adjacent ? clueSprite(cell.clue) : 'blank';
+      description = cell.adjacent ? `线索 ${radical(cell.clue)}，点击尝试展开` : '空白';
+      if (!cell.adjacent) classes.push('blank');
     } else if (game.over && cell.mine) {
       classes.push('mine', `type-${cell.mine}`);
-      text = names[cell.mine];
-      description = `雷 ${text}`;
-      if (index === game.boom) {classes.push('boom'); description += '，引爆';}
+      tile = mineSprite('mine', cell.mine, mode);
+      description = `雷 ${names[cell.mine]}`;
+      if (index === game.boom) {tile = mineSprite('boom', cell.mine, mode); classes.push('boom'); description += '，引爆';}
       if (cell.flag) {
-        const judgment = review.cells[index], status = judgment.status;
+        const status = review.cells[index].status;
         const messages = {exact: '具体雷型完全正确', compatible: '标记组合符合已翻开的线索，具体雷型不同', unverified: '尚无完整标记的线索可验证这个组合', wrong: '标记组合与已翻开的线索冲突'};
         classes.push(status === 'exact' || status === 'compatible' ? 'correct' : status, status);
-        text += `<span class="review-mark" aria-hidden="true">${status === 'exact' || status === 'compatible' ? '✓' : status === 'unverified' ? '?' : '×'}</span>`;
+        if (status === 'exact') tile = mineSprite('right', cell.mine, mode);
+        else if (status === 'wrong') tile = mineSprite('wrong', cell.mine, mode);
+        badge = `<span class="review-mark" aria-hidden="true">${status === 'exact' || status === 'compatible' ? '✓' : status === 'unverified' ? '?' : '×'}</span>`;
         description += `，你的标记 ${names[cell.flag]}，${messages[status]}`;
       }
     } else if (cell.flag) {
       classes.push('flagged', `type-${cell.flag}`);
-      text = `<span class="flag-symbol" aria-hidden="true">⚑</span><span class="type-value">${names[cell.flag]}</span>`;
+      tile = mineSprite('flag', cell.flag, mode);
       description = `已标记 ${names[cell.flag]}`;
-      if (game.over) {classes.push('wrong'); text += '<span class="review-mark" aria-hidden="true">×</span>'; description += '，此处无雷，标记错误';}
+      if (game.over) {tile = 'wrongblank'; classes.push('wrong'); badge = '<span class="review-mark" aria-hidden="true">×</span>'; description += '，此处无雷，标记错误';}
     }
     button.className = classes.join(' ');
-    button.innerHTML = text;
+    button.innerHTML = (tile ? sprite(tile) : radical(cell.clue)) + badge;
     button.setAttribute('aria-label', `第 ${Math.floor(index / game.width) + 1} 行，第 ${index % game.width + 1} 列，${description}`);
     button.setAttribute('aria-disabled', String(game.over));
     if (review?.cells[index]) {
@@ -154,15 +188,17 @@ function render() {
       button.removeAttribute('title');
     }
   }
-  $('#remaining').textContent = String(game.mines - flagCount).padStart(3, '0');
+  const remaining = game.mines - flagCount;
+  setCounter($('#remaining'), remaining, `剩余待标记 ${remaining} 颗雷`);
   for (let type = 1; type <= 4; type++) $(`[data-count="${type}"]`).textContent = game.started ? game.totals[type] - flags[type] : '—';
-  $('#state-text').textContent = game.over ? game.won ? '推理成功' : '触雷了' : game.started ? '推理进行中' : '准备就绪';
+  $('#state-text').textContent = game.over ? game.won ? '恭喜，扫雷成功！' : '触雷了，点击笑脸重新开始。' : game.started ? '游戏进行中' : '准备就绪';
   $('#game-state').dataset.state = game.over ? game.won ? 'won' : 'lost' : game.started ? 'playing' : 'ready';
   const safe = game.cells.length - game.mines;
   $('#progress-count').textContent = `${game.opened} / ${safe}`;
   $('#progress-fill').style.width = `${game.opened / safe * 100}%`;
   $('#moves').textContent = `${game.moves} 步`;
-  $('#board-caption').textContent = game.over ? '复盘：✓ 完全正确 / 组合相符 · ? 待验证 · × 错误；格内为实际雷型' : game.started ? '0 可能藏着抵消的雷。相信线索，也留意正负。' : '✦ 从任意一格开始，第一步总是安全的。';
+  $('#board-caption').textContent = game.over ? '✓ 完全正确 / 组合相符 · ? 待验证 · × 标错；格内为实际雷型。' : game.started ? '0 可能藏着抵消的雷，空白才表示附近没有雷。' : '点击任意一格开始；第一步及周围八格安全。';
+  updateFace();
   updateTypeJudgment();
 }
 
@@ -228,6 +264,7 @@ $('#board').addEventListener('contextmenu', event => {
   perform(Number(cell.dataset.index), 'cycle');
 });
 $('#board').addEventListener('pointerdown', event => {
+  if (!game.over) updateFace(true);
   if (event.pointerType !== 'touch' || holdStart) return;
   const cell = event.target.closest('[data-index]');
   if (!cell) return;
@@ -240,7 +277,7 @@ $('#board').addEventListener('pointerdown', event => {
 $('#board').addEventListener('pointermove', event => {
   if (holdStart && Math.hypot(event.clientX - holdStart.x, event.clientY - holdStart.y) > 10) clearTimeout(holdTimer);
 });
-for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => {clearTimeout(holdTimer); holdStart = null;});
+for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => {clearTimeout(holdTimer); holdStart = null; updateFace();});
 $('#board').addEventListener('keydown', event => {
   const cell = event.target.closest('[data-index]');
   if (!cell) return;
@@ -266,6 +303,12 @@ $$('[data-mode]').forEach(button => button.addEventListener('click', () => {
 }));
 $('#new-game').addEventListener('click', newGame);
 $('#play-again').addEventListener('click', newGame);
+$('#face-button')?.addEventListener('click', newGame);
+$('#face-button')?.addEventListener('pointerdown', () => {$('#face-button').firstElementChild.className = 'sprite sprite-face_down';});
+$('#face-button')?.addEventListener('pointerleave', () => updateFace());
+$('#zoom')?.addEventListener('change', event => {zoom = Number(event.target.value); applyZoom(); storage.set('zoom', zoom);});
+$$('[data-new-game]').forEach(button => button.addEventListener('click', () => {newGame(); $('#start-menu').open = false;}));
+$$('[data-help]').forEach(button => button.addEventListener('click', () => {$('#help-dialog').showModal(); $('#start-menu').open = false;}));
 $('#custom-edit').addEventListener('click', () => {$('#custom-error').textContent = ''; $('#custom-dialog').showModal();});
 $('#difficulty').addEventListener('change', event => {
   if (event.target.value === 'custom') {
@@ -300,19 +343,30 @@ document.addEventListener('keydown', event => {
   if (key === 'd') setAction('reveal');
   else if (key === 'f') setAction('flag');
   else if (/^[1-4]$/.test(key)) chooseType(Number(key));
-  else if (key === 'r') newGame();
+  else if (key === 'r' || key === 'f2') {event.preventDefault(); newGame();}
+  else if (key === 'h') $('#help-dialog').showModal();
 });
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  $('#theme-button').setAttribute('aria-label', theme === 'dark' ? '切换浅色主题' : '切换深色主题');
-  $('meta[name="theme-color"]').content = theme === 'dark' ? '#18211d' : '#f5f5f0';
+  const dark = theme === 'dark';
+  $('#theme-button').setAttribute('aria-label', dark ? '恢复经典配色' : '切换高对比度');
+  $('#theme-button').setAttribute('aria-pressed', String(dark));
+  $('#theme-button').textContent = dark ? '经典配色' : '高对比度';
+  $('meta[name="theme-color"]').content = dark ? '#000000' : '#008080';
 }
-const preferredTheme = storage.get('theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-applyTheme(preferredTheme === 'dark' ? 'dark' : 'light');
+applyTheme(storage.get('retro-theme', 'light') === 'dark' ? 'dark' : 'light');
 $('#theme-button').addEventListener('click', () => {
   const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   applyTheme(theme);
-  storage.set('theme', theme);
+  storage.set('retro-theme', theme);
 });
+document.addEventListener('click', event => {if (!event.target.closest('#start-menu') && $('#start-menu')) $('#start-menu').open = false;});
+document.addEventListener('keydown', event => {if (event.key === 'Escape' && $('#start-menu')) $('#start-menu').open = false;});
+function updateClock() {
+  const clock = $('#desktop-clock');
+  if (clock) {const now = new Date(); clock.textContent = now.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', hour12: false}); clock.dateTime = now.toISOString();}
+}
+updateClock();
+setInterval(updateClock, 30000);
 newGame();
