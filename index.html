@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f5f0">
+  <meta name="description" content="给扫雷，多一个维度。复数扫雷网页版：四种正负实虚雷、圆复数与双曲复数模式，电脑手机均可游玩。">
+  <title>复数扫雷 · Complexweeper</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="复数扫雷首页"><span class="brand-icon" aria-hidden="true">z<span>+</span></span><span>复数扫雷<span class="brand-en">COMPLEXWEEPER</span></span></a>
+      <nav aria-label="主要导航">
+        <button class="text-button" id="help-button"><span aria-hidden="true">?</span> 玩法说明</button>
+        <button class="icon-button" id="theme-button" aria-label="切换深色主题" title="切换主题">◐</button>
+        <a class="icon-button" id="repo-link" href="https://github.com/WilliamWilson-1/complexweeper-web" target="_blank" rel="noopener noreferrer" aria-label="查看 GitHub 源码" title="GitHub 源码"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.08c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.73 2.63 1.23 3.27.94.1-.73.4-1.23.72-1.51-2.5-.29-5.13-1.25-5.13-5.54 0-1.23.44-2.23 1.16-3.02-.12-.29-.5-1.43.11-2.98 0 0 .95-.3 3.08 1.15a10.7 10.7 0 0 1 5.6 0c2.14-1.45 3.08-1.15 3.08-1.15.61 1.55.23 2.69.11 2.98.72.79 1.16 1.79 1.16 3.02 0 4.3-2.63 5.25-5.14 5.53.4.35.76 1.03.76 2.08v3.09c0 .3.2.65.77.54A11.2 11.2 0 0 0 12 .8Z"/></svg></a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="title">
+        <div><p class="eyebrow"><span></span> A LITTLE LOGIC. A NEW DIMENSION.</p><h1 id="title">给扫雷，多一个维度<span class="title-dot">。</span></h1><p class="intro-copy">熟悉的棋盘，不一样的线索。让正负与实虚，参与每一次推理。</p></div>
+        <div class="intro-equation" aria-hidden="true"><span>z = a + b<i>i</i></span><small>THINK BEYOND THE REAL.</small></div>
+      </section>
+
+      <div class="workspace">
+        <section class="game-panel" aria-label="扫雷游戏">
+          <div class="game-controls">
+            <div class="segmented mode-tabs" role="group" aria-label="数学模式"><button data-mode="complex" aria-pressed="true">圆复数 <span>i² = −1</span></button><button data-mode="hyper" aria-pressed="false">双曲复数 <span>j² = +1</span></button></div>
+            <div class="difficulty-control"><label class="sr-only" for="difficulty">棋盘难度</label><select id="difficulty"><option value="easy">初级 · 9 × 9</option><option value="medium">中级 · 16 × 16</option><option value="hard">高级 · 30 × 16</option><option value="custom">自定义…</option></select><button class="icon-button" id="custom-edit" hidden aria-label="调整自定义棋盘" title="调整自定义棋盘">⚙</button><button class="new-game" id="new-game" title="重新开始一局"><span aria-hidden="true">↻</span> 新一局</button></div>
+          </div>
+
+          <div class="game-inner">
+            <div class="scorebar">
+              <div class="metric"><span class="metric-label">待标记</span><strong id="remaining">010</strong><span class="metric-unit">MINES</span></div>
+              <div class="game-state" id="game-state" role="status"><span class="state-dot"></span><span id="state-text">准备就绪</span></div>
+              <div class="metric timer-metric"><span class="metric-label">用时</span><strong id="timer">00:00</strong><span class="metric-unit">TIME</span></div>
+            </div>
+            <div class="board-scroll" id="board-scroll"><div class="board" id="board" role="group" aria-label="9 行 9 列扫雷棋盘"></div></div>
+            <div class="board-caption" id="board-caption"><span class="tiny-spark" aria-hidden="true">✦</span> 从任意一格开始，第一步总是安全的。</div>
+
+            <div class="input-toolbar">
+              <div class="segmented action-tabs" role="group" aria-label="点击操作"><button data-action="reveal" aria-pressed="true"><span aria-hidden="true">↖</span> 翻开 <kbd>D</kbd></button><button data-action="flag" aria-pressed="false"><span aria-hidden="true">⚑</span> 标记 <kbd>F</kbd></button></div>
+              <span class="desktop-hint">右键循环插旗 · 点击数字展开</span><span class="mobile-hint">长按插旗 · 点击数字展开</span>
+            </div>
+            <div class="result" id="result" hidden aria-live="polite"><div><strong id="result-title"></strong><p id="result-copy"></p></div><button class="new-game" id="play-again">再来一局 <span aria-hidden="true">↗</span></button></div>
+          </div>
+          <div class="progress-row"><span>安全格 <strong id="progress-count">0 / 71</strong></span><div class="progress-track"><div id="progress-fill"></div></div><span id="moves">0 步</span></div>
+        </section>
+
+        <aside class="sidebar" aria-label="雷型与规则">
+          <section class="palette-card"><div class="section-heading"><h2>四种雷，一场推理</h2><span class="mini-label">MINE TYPES</span></div><p class="muted small">选择旗帜类型，然后标记你的判断。</p>
+            <div class="mine-palette" role="group" aria-label="选择旗帜类型">
+              <button data-type="1" class="mine-choice" aria-pressed="true"><span class="type-token type-1">+1</span><span class="type-description"><strong>正实雷</strong><small>REAL +</small></span><span class="type-count" data-count="1">—</span><kbd>1</kbd></button>
+              <button data-type="2" class="mine-choice" aria-pressed="false"><span class="type-token type-2">−1</span><span class="type-description"><strong>负实雷</strong><small>REAL −</small></span><span class="type-count" data-count="2">—</span><kbd>2</kbd></button>
+              <button data-type="3" class="mine-choice" aria-pressed="false"><span class="type-token type-3">+i</span><span class="type-description"><strong id="positive-unit-name">正虚雷</strong><small id="positive-unit-en">IMAGINARY +</small></span><span class="type-count" data-count="3">—</span><kbd>3</kbd></button>
+              <button data-type="4" class="mine-choice" aria-pressed="false"><span class="type-token type-4">−i</span><span class="type-description"><strong id="negative-unit-name">负虚雷</strong><small id="negative-unit-en">IMAGINARY −</small></span><span class="type-count" data-count="4">—</span><kbd>4</kbd></button>
+            </div><p class="palette-note" id="palette-note">开局后显示各类雷的剩余待标数量</p>
+          </section>
+
+          <section class="clue-card"><div class="section-heading"><h2>读懂一个数字</h2><span class="mini-label">THE CLUE</span></div><div class="formula" id="formula">|z| = √<span class="overline">a² + b²</span></div><p class="small muted" id="formula-description">数字是周围八格中，所有雷相加后的模长。</p>
+            <div class="example" aria-label="线索示例"><div class="example-tiles"><span class="type-token type-1">+1</span><span class="math-sign">+</span><span class="type-token type-3">+i</span><span class="math-sign">→</span><span class="example-answer" id="example-answer">√2</span></div><span class="example-caption" id="example-caption">1 + i 的模长是 √2</span></div>
+            <div class="zero-note"><span aria-hidden="true">ⓘ</span><p><strong>0 ≠ 空白</strong><br>正负雷可能相互抵消。<b>0 周围仍可能有雷</b>，只有空白格才会自动展开。</p></div>
+          </section>
+          <div class="best-card"><span><span class="best-icon" aria-hidden="true">♧</span> 本机最佳纪录</span><strong id="best-time">等待你的第一次胜利</strong></div>
+        </aside>
+      </div>
+
+      <section class="how-row" aria-label="快速入门"><div><span class="step-index">01</span><p><strong>翻开格子</strong><span>找一个起点，获得第一组线索。</span></p></div><div><span class="step-index">02</span><p><strong>推理与标记</strong><span>结合模长，用四种旗帜标出雷。</span></p></div><div><span class="step-index">03</span><p><strong>找到所有安全格</strong><span>胜利靠翻开安全格，标记不必全对。</span></p></div></section>
+    </main>
+
+    <footer><span>源自 <a href="https://github.com/Yueqing-Chen/complexweeper-A-minesweeper-game" target="_blank" rel="noopener noreferrer">青月晓 / Complexweeper <span aria-hidden="true">↗</span></a> 的奇妙构想</span><span>HTML · CSS · JavaScript <span class="footer-dot">·</span> <a href="./LICENSE">GPL-3.0</a></span></footer>
+  </div>
+
+  <dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-top"><span class="eyebrow">HOW TO PLAY</span><button class="icon-button" data-close aria-label="关闭玩法说明">✕</button></div><h2 id="help-title">从扫雷，到复数扫雷。</h2><p class="muted">目标很简单：翻开所有没有雷的格子。</p><div class="help-content"><h3>四种雷，如何变成线索？</h3><p>圆复数模式有 +1、−1、+i、−i 四种雷。将某格周围八格的雷相加得到 a + bi，该格显示 √(a² + b²)。例如 +1 和 +i 得到 √2，+1 和 −1 则得到 0。</p><p><strong>空白表示周围完全无雷；0 表示有雷但合成值为零。</strong>自动展开只沿空白格扩散，不会把 0 当成安全空白。</p><h3>双曲复数模式</h3><p>把 i 换成满足 j² = +1 的 j，显示值变成 √(a² − b²)。当 a² − b² 为负数时，用 i 表示形式平方根，例如 √(−3) 显示为 √3i。注意：雷的单位是 j，负值线索的后缀是 i。</p><h3>标记与展开</h3><p>电脑左键翻开，右键按「空 → +1 → −1 → +i / +j → −i / −j → 空」循环插旗。也可以先选择一种旗帜，在「标记」模式点击格子；再次点击相同旗帜可移除。手机支持长按插入当前选中的旗帜。</p><p>点击已经翻开的数字，可以尝试展开周围未标记格。圆复数要求旗帜总数与实际雷数相同，实雷与虚雷的数量相符或互换；双曲复数要求旗帜总数相同，并且实部、j 部的<strong>净和绝对值</strong>分别相符。这与原项目当前代码一致。</p><p><strong>展开判据通过，并不保证旗帜位置正确；错误的位置依然可能引爆雷。</strong>结局会展示全部雷型，✓ 表示类型正确，× 表示标错。</p><h3>快捷键与小提示</h3><p>D 切换翻开，F 切换标记，1–4 选择旗帜并进入标记模式；棋盘内方向键移动，Enter / 空格执行当前操作，R 重新开始，Esc 关闭说明。首次翻开时，该格及其周围八格保证无雷。各类雷总数在开局后公开，侧栏显示「总数 − 已插旗数」，可以为负。</p><p>本版本未使用无猜算法，部分局面可能需要猜测。最佳用时仅保存在当前浏览器中。</p></div><button class="primary-button" id="start-playing">明白了，开始推理 <span aria-hidden="true">↗</span></button></dialog>
+  <dialog id="custom-dialog" aria-labelledby="custom-title"><form id="custom-form"><div class="dialog-top"><span class="eyebrow">YOUR BOARD</span><button type="button" class="icon-button" data-close aria-label="关闭自定义棋盘">✕</button></div><h2 id="custom-title">你的棋盘，你来定义。</h2><p class="muted small">宽度 5–40，高度 5–30；至少留出 9 个安全格。</p><div class="custom-fields"><label>宽度<input name="width" type="number" min="5" max="40" value="12" required></label><label>高度<input name="height" type="number" min="5" max="30" value="12" required></label><label>雷数<input name="mines" type="number" min="1" value="24" required></label></div><p class="form-error" id="custom-error" role="alert"></p><button class="primary-button" type="submit">开始新棋盘 <span aria-hidden="true">↗</span></button></form></dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <noscript>请启用 JavaScript 以运行复数扫雷。</noscript>
+</body>
+</html>

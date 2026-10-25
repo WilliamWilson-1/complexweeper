@@ -1,0 +1,9 @@
+{
+  "name": "complexweeper-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "复数扫雷 · A browser-based Complexweeper",
+  "scripts": {"test": "node --test", "start": "python3 -m http.server 4173 --bind 127.0.0.1"},
+  "license": "GPL-3.0-only"
+}

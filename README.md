@@ -1,0 +1,67 @@
+# 复数扫雷 · Complexweeper Web
+
+给扫雷，多一个维度。一个使用 **HTML、CSS 和原生 JavaScript** 实现的复数扫雷网页版，电脑、平板与手机均可使用。
+
+**在线游玩：[williamwilson-1.github.io/complexweeper-web](https://williamwilson-1.github.io/complexweeper-web/)**
+
+玩法与核心规则移植自 [青月晓 / Yueqing-Chen 的 Complexweeper](https://github.com/Yueqing-Chen/complexweeper-A-minesweeper-game)，原项目为 Zig + Win32 桌面程序。本版本重写为静态前端，没有框架、运行时依赖、服务器或远程字体依赖。
+
+## 玩法
+
+- 圆复数模式：四类雷 `+1`、`−1`、`+i`、`−i`。八邻域相加得到 `a + bi`，格子显示 `√(a² + b²)`。
+- 双曲复数模式：虚单位换为 `j² = +1`，格子显示 `√(a² − b²)`；负值线索以 `i` 为后缀，例如 `√3i`。
+- **空白**代表八邻域内完全无雷；**0** 代表有雷但合成值为零。只有空白格会自动连片展开。
+- 翻开全部非雷格即胜利；不用把所有雷旗标对。首次点击及其周围八格保证无雷。
+- 展开判据与原项目当前 `正式版/src/game.zig` 一致：圆复数检查总旗数和实虚数量（允许交换）；双曲复数检查总旗数和实、j 净和的绝对值。旗帜位置错误时，展开仍可能触雷。
+- 未使用无猜算法；部分棋盘可能需要猜测。
+
+## 操作
+
+| 操作 | 作用 |
+| --- | --- |
+| 左键 / 点击 | 当前模式下翻开或标记 |
+| 右键 | 空 → +1 → −1 → +i/+j → −i/−j → 空 |
+| 手机长按 | 插入 / 移除当前选中的旗帜 |
+| 点击已翻开的数字 | 尝试展开周围未标记格 |
+| D / F | 切换翻开 / 标记模式 |
+| 1–4 | 选择旗帜类型并进入标记模式 |
+| 方向键、Enter / 空格 | 移动棋盘焦点并执行操作 |
+| R / Esc | 新一局 / 关闭弹窗 |
+
+支持初级（9×9，10 雷）、中级（16×16，40 雷）、高级（30×16，99 雷）和自定义棋盘（5–40 列，5–30 行）。支持深浅色主题、本机最佳用时记录和结局标记复盘；偏好及纪录使用浏览器 `localStorage`，不发送到服务器。
+
+## 本地运行
+
+```sh
+python3 -m http.server 4173
+```
+
+打开 `http://localhost:4173`。由于使用 ES modules，请通过 HTTP 服务访问。
+
+## 测试
+
+Node.js 20 或更新版本，无需安装依赖：
+
+```sh
+npm test
+```
+
+测试覆盖首次点击安全、准确布雷、复数模长、双曲线索、根式化简、零值不扩散、插旗保护、展开判据、错误标记触雷、输赢判定、自定义边界和随机棋盘一致性。
+
+## GitHub Pages
+
+仓库 **Settings → Pages → Build and deployment**：选择 **Deploy from a branch**，分支 `main`，目录 `/ (root)`，保存即可。提交到 `main` 后 GitHub Pages 自动更新，`.nojekyll` 保持静态文件直接发布。
+
+## 项目文件
+
+- `index.html`：页面结构、中文说明与自定义棋盘表单。
+- `style.css`：响应式棋盘、深浅色主题与辅助访问样式。
+- `engine.js`：与界面解耦的复数扫雷规则。
+- `app.js`：输入交互、棋盘渲染、计时与本地纪录。
+- `engine.test.js`：游戏核心规则测试。
+
+## 来源与许可
+
+原作者：**青月晓（Yueqing-Chen）**。原始项目：[complexweeper-A-minesweeper-game](https://github.com/Yueqing-Chen/complexweeper-A-minesweeper-game)。本版本基于该项目的规则与代码制作浏览器移植；保留原作者署名，并以 **GPL-3.0-only** 发布，见 [LICENSE](./LICENSE)。
+
+原项目含 Microsoft 原版扫雷素材及作者自制素材。本网页的布局、图形和样式重新制作，未包含原项目的 Microsoft 图像、图集、音频或程序图标。
