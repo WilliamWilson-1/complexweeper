@@ -2,7 +2,7 @@
 
 Win98 风格的复数扫雷，使用原项目像素图集。一个使用 **HTML、CSS 和原生 JavaScript** 实现的复数扫雷网页版，电脑、平板与手机均可使用。
 
-**在线游玩：[williamwilson-1.github.io/complexweeper-web](https://williamwilson-1.github.io/complexweeper-web/)**
+**在线游玩：[williamwilson-1.github.io/complexweeper-web](https://williamwilson-1.github.io/complexweeper/)**
 
 玩法与核心规则移植自 [青月晓 / Yueqing-Chen 的 Complexweeper](https://github.com/Yueqing-Chen/complexweeper-A-minesweeper-game)，原项目为 Zig + Win32 桌面程序。本版本重写为静态前端，没有框架、运行时依赖、服务器或远程字体依赖。
 
